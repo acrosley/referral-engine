@@ -1,10 +1,5 @@
 {
   "buildCommand": "cd landing-page && npm run build",
-  "outputDirectory": "landing-page/.next",
-  "functions": {
-    "landing-page/app/api/**/*.ts": {
-      "runtime": "nodejs18.x"
-    }
-  }
+  "outputDirectory": "landing-page/.next"
 }
 
