@@ -1,8 +1,10 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "cd landing-page && npm run build",
-  "devCommand": "cd landing-page && npm run dev",
-  "installCommand": "cd landing-page && npm install",
-  "outputDirectory": "landing-page/.next"
+  "outputDirectory": "landing-page/.next",
+  "functions": {
+    "landing-page/app/api/**/*.ts": {
+      "runtime": "nodejs18.x"
+    }
+  }
 }
 
