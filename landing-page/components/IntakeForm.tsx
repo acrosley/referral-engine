@@ -359,7 +359,7 @@ export default function IntakeForm() {
               <span className="ml-2 text-sm text-gray-700">
                 I understand and consent to my case being referred to a qualified partner attorney 
                 under Texas Disciplinary Rules of Professional Conduct Rule 1.04(f), and that a 
-                referral fee may be paid to Crosley Referral Law Group, PLLC from the attorney's fees. *
+                referral fee may be paid to Crosley Referral Law Group, PLLC from the attorney&apos;s fees. *
               </span>
             </label>
             {errors.consentToReferral && (

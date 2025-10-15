@@ -102,7 +102,7 @@ export default function Home() {
             Ready to Connect With the Right Attorney?
           </h2>
           <p className="text-xl text-primary-100 mb-8">
-            Submit your case information and we'll match you with a qualified legal partner 
+            Submit your case information and we&apos;ll match you with a qualified legal partner 
             who can provide the representation you deserve.
           </p>
           <Link

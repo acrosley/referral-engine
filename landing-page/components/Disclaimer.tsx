@@ -26,7 +26,7 @@ export default function Disclaimer() {
             <p>
               <strong>Referral Disclosure:</strong> Crosley Referral Law Group, PLLC is a licensed attorney 
               referral service operating under Texas Disciplinary Rules of Professional Conduct Rule 1.04(f). 
-              We refer cases to qualified partner law firms and may receive a referral fee from the attorney's 
+              We refer cases to qualified partner law firms and may receive a referral fee from the attorney&apos;s 
               professional fees. All referrals require informed client consent and comply with applicable bar rules.
             </p>
             <p>
