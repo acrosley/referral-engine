@@ -1,0 +1,19 @@
+{
+  "name": "crosley-referral-engine",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Crosley Referral Engine - Personal Injury Case Referral System",
+  "scripts": {
+    "dev": "cd landing-page && npm run dev",
+    "build": "cd landing-page && npm install && npm run build",
+    "start": "cd landing-page && npm start",
+    "lint": "cd landing-page && npm run lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/acrosley/referral-engine.git"
+  },
+  "author": "Andrew Crosley",
+  "license": "UNLICENSED"
+}
+
