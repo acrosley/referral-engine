@@ -1,11 +1,17 @@
-# financial_sensitivity_model.py
+# financial_sensitivity_model_public.py
 import math
+import warnings
 from io import BytesIO
 from PIL import Image
 
 import gradio as gr
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend for public sharing
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
+
+# Suppress matplotlib warnings for cleaner public output
+warnings.filterwarnings('ignore', category=UserWarning, module='matplotlib')
 
 
 def kpis(
@@ -29,6 +35,36 @@ def kpis(
     tier_2_pct,
     tier_3_pct,
 ):
+    """Calculate financial KPIs and generate charts with input validation."""
+    try:
+        # Input validation and sanitization for public use
+        if ad_spend is None or qualified_leads is None or keepers_count is None:
+            return "Error: Please fill in all required fields.", None, None
+        
+        # Ensure all inputs are within reasonable bounds for public safety
+        ad_spend = max(0.0, min(float(ad_spend or 0), 100000))  # Cap at $100k
+        qualified_leads = max(0, min(int(qualified_leads or 0), 1000))  # Cap at 1000 leads
+        keepers_count = max(0, min(int(keepers_count or 0), 500))  # Cap at 500 keepers
+        lead_to_keeper_rate = max(0.0, min(float(lead_to_keeper_rate or 0), 100.0))
+        avg_settlement = max(0.0, min(float(avg_settlement or 0), 1000000))  # Cap at $1M
+        contingency_pct = max(0.0, min(float(contingency_pct or 0), 100.0))
+        referral_fee_pct = max(0.0, min(float(referral_fee_pct or 0), 100.0))
+        variable_cost_per_lead = max(0.0, min(float(variable_cost_per_lead or 0), 1000))  # Cap at $1k
+        fixed_overhead = max(0.0, min(float(fixed_overhead or 0), 50000))  # Cap at $50k
+        desired_roi_pct = max(0.0, min(float(desired_roi_pct or 0), 1000))  # Cap at 1000%
+        x_axis_max = max(0, min(int(x_axis_max or 0), 1000))  # Cap at 1000 for performance
+        
+        # Time-based parameter validation
+        months_in_operation = max(0, min(int(months_in_operation or 0), 120))  # Cap at 10 years
+        avg_case_duration_months = max(1.0, min(float(avg_case_duration_months or 12), 60))  # Cap at 5 years
+        case_resolution_probability = max(0.0, min(float(case_resolution_probability or 85), 100.0))
+        tier_1_pct = max(0.0, min(float(tier_1_pct or 40), 100.0))
+        tier_2_pct = max(0.0, min(float(tier_2_pct or 40), 100.0))
+        tier_3_pct = max(0.0, min(float(tier_3_pct or 20), 100.0))
+        
+    except (ValueError, TypeError) as e:
+        return f"Error: Invalid input values. Please check your inputs. ({str(e)})", None, None
+    
     # Normalize
     contingency = contingency_pct / 100.0
     referral_fee = referral_fee_pct / 100.0
@@ -362,41 +398,70 @@ Capital Lockup Period: {capital_lockup_period:.1f} months
     return kpi, img1, img2
 
 
-with gr.Blocks(title="Financial Sensitivity Model") as demo:
-    gr.Markdown("# Financial Sensitivity Model")
-    gr.Markdown("Adjust inputs and click **Calculate** to update KPIs and charts.")
+with gr.Blocks(
+    title="Financial Sensitivity Model - Public Demo",
+    theme=gr.themes.Soft(),
+    css="""
+    .gradio-container {
+        max-width: 1200px !important;
+        margin: auto !important;
+    }
+    .warning {
+        background-color: #fff3cd;
+        border: 1px solid #ffeaa7;
+        padding: 10px;
+        border-radius: 5px;
+        margin: 10px 0;
+    }
+    """
+) as demo:
+    gr.Markdown("# 📊 Financial Sensitivity Model - Public Demo")
+    gr.Markdown("""
+    **Disclaimer:** This is a demonstration tool for educational purposes. 
+    Adjust inputs and click **Calculate** to update KPIs and charts.
+    
+    ⚠️ **Input Limits:** Values are capped for public safety and performance.
+    """)
+    
+    with gr.Row():
+        gr.Markdown("""
+        <div class="warning">
+        <strong>Note:</strong> This tool is for demonstration purposes only. 
+        All calculations are estimates and should not be used for actual business decisions.
+        </div>
+        """)
 
     with gr.Row():
         with gr.Column(scale=85):
-            ad_spend = gr.Number(label="Monthly Ad Spend ($)", value=9000, precision=0)
-            qualified_leads = gr.Number(label="Qualified Leads (per month)", value=60, precision=0)
+            ad_spend = gr.Number(label="Monthly Ad Spend ($)", value=9000, precision=0, maximum=100000, info="Max: $100,000")
+            qualified_leads = gr.Number(label="Qualified Leads (per month)", value=60, precision=0, maximum=1000, info="Max: 1,000")
 
             keepers_input_mode = gr.Radio(
                 ["Direct entry", "From rate (%)"],
                 value="Direct entry",
                 label="Keepers Input Mode",
             )
-            keepers_count = gr.Number(label="Keepers (signed cases)", value=5, precision=0, visible=True)
+            keepers_count = gr.Number(label="Keepers (signed cases)", value=5, precision=0, visible=True, maximum=500, info="Max: 500")
             lead_to_keeper_rate = gr.Slider(
                 label="Lead→Keeper Rate (%)", value=8.0, minimum=0.0, maximum=100.0, step=0.1, visible=False
             )
 
-            avg_settlement = gr.Number(label="Average Settlement ($)", value=36000, precision=0)
+            avg_settlement = gr.Number(label="Average Settlement ($)", value=36000, precision=0, maximum=1000000, info="Max: $1,000,000")
             contingency_pct = gr.Slider(label="Contingency Percentage (%)", value=33.3, minimum=10.0, maximum=45.0, step=0.1)
             referral_fee_pct = gr.Slider(label="Referral Fee Percentage (%)", value=25.0, minimum=5.0, maximum=40.0, step=0.1)
 
             variable_cost_per_lead = gr.Number(
-                label="Other Variable Cost per Lead ($)", value=25, precision=0
+                label="Other Variable Cost per Lead ($)", value=25, precision=0, maximum=1000, info="Max: $1,000"
             )
             fixed_overhead = gr.Number(
-                label="Fixed Overhead ($/month)", value=1500, precision=0
+                label="Fixed Overhead ($/month)", value=1500, precision=0, maximum=50000, info="Max: $50,000"
             )
-            desired_roi_pct = gr.Slider(label="Target ROI (%)", value=100.0, minimum=0.0, maximum=400.0, step=5.0)
-            x_axis_max = gr.Number(label="X-axis max keepers (0 = auto)", value=10, precision=0)
+            desired_roi_pct = gr.Slider(label="Target ROI (%)", value=100.0, minimum=0.0, maximum=1000.0, step=5.0, info="Max: 1000%")
+            x_axis_max = gr.Number(label="X-axis max keepers (0 = auto)", value=0, precision=0, maximum=1000, info="Max: 1000")
 
             gr.Markdown("### Time-Based Parameters")
-            months_in_operation = gr.Number(label="Months in Operation", value=12, precision=0)
-            avg_case_duration_months = gr.Slider(label="Average Case Duration (months)", value=12.0, minimum=6.0, maximum=36.0, step=1.0)
+            months_in_operation = gr.Number(label="Months in Operation", value=12, precision=0, maximum=120, info="Max: 120 months")
+            avg_case_duration_months = gr.Slider(label="Average Case Duration (months)", value=12.0, minimum=6.0, maximum=60.0, step=1.0, info="Max: 60 months")
             case_resolution_probability = gr.Slider(label="Case Resolution Probability (%)", value=85.0, minimum=0.0, maximum=100.0, step=1.0)
             
             with gr.Accordion("Case Maturity Distribution", open=False):
@@ -444,7 +509,30 @@ with gr.Blocks(title="Financial Sensitivity Model") as demo:
         ],
         outputs=[kpi_out, plot_out, roi_plot_out],
     )
+    
+    # Footer with usage information
+    with gr.Row():
+        gr.Markdown("""
+        ---
+        **📚 How to Use:**
+        1. Adjust the input parameters in the left column
+        2. Click "Calculate / Update" to see results
+        3. View KPIs in the results box and charts below
+        
+        **🔧 Tips:**
+        - Use "Direct entry" for keepers or "From rate (%)" to calculate from leads
+        - X-axis max of 0 uses automatic scaling
+        - All values are capped for public safety and performance
+        
+        **⚠️ Disclaimer:** This tool is for demonstration purposes only.
+        """)
 
 
 if __name__ == "__main__":
-    demo.launch(share=True)
+    demo.launch(
+        share=True,
+        server_name="0.0.0.0",  # Allow external connections
+        server_port=7860,       # Default Gradio port
+        show_error=True,        # Show errors to users
+        quiet=False            # Show startup messages
+    )

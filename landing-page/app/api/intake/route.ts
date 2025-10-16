@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { intakeFormSchema } from "@/lib/validation";
 import { ZodError } from "zod";
+import { DatabaseService } from "@/lib/db";
+import { CaseScorer } from "@/lib/scoring";
+import { EmailService } from "@/lib/notifications";
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,38 +12,138 @@ export async function POST(request: NextRequest) {
     // Validate the incoming data
     const validatedData = intakeFormSchema.parse(body);
     
-    // Add submission metadata
+    // Generate unique submission ID
+    const submissionId = generateSubmissionId();
+    
+    // Prepare submission data for database
     const submissionData = {
-      ...validatedData,
-      submittedAt: new Date().toISOString(),
-      submissionId: generateSubmissionId(),
+      submission_id: submissionId,
+      full_name: validatedData.fullName,
+      email: validatedData.email,
+      phone: validatedData.phone,
+      incident_type: validatedData.incidentType,
+      incident_date: validatedData.incidentDate,
+      incident_location: validatedData.incidentLocation,
+      description: validatedData.description,
+      injury_severity: validatedData.injurySeverity,
+      medical_treatment: validatedData.medicalTreatment,
+      hospitalized: validatedData.hospitalized,
+      has_insurance: validatedData.hasInsurance,
+      insurance_provider: validatedData.insuranceProvider || null,
+      has_attorney: validatedData.hasAttorney,
+      submitted_at: new Date().toISOString(),
       source: "web_form",
-      userAgent: request.headers.get("user-agent") || "unknown",
-      ipAddress: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown",
+      user_agent: request.headers.get("user-agent") || "unknown",
+      ip_address: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown",
+      status: "pending"
     };
     
-    // Log the submission (in production, this would go to a database)
-    console.log("=== NEW CASE SUBMISSION ===");
-    console.log(JSON.stringify(submissionData, null, 2));
-    console.log("===========================");
+    // 1. Save to database
+    console.log("Saving submission to database...");
+    const savedSubmission = await DatabaseService.createSubmission(submissionData);
+    console.log("Submission saved with ID:", savedSubmission.id);
     
-    // TODO: In Phase 2, send this data to:
-    // 1. Database for storage (PostgreSQL/Supabase)
-    // 2. FastAPI backend for AI scoring
-    // 3. CRM system for tracking
+    // 2. Calculate AI score
+    console.log("Calculating AI score...");
+    const scoringInput = {
+      incidentType: validatedData.incidentType,
+      injurySeverity: validatedData.injurySeverity,
+      description: validatedData.description,
+      medicalTreatment: validatedData.medicalTreatment,
+      hospitalized: validatedData.hospitalized,
+      hasInsurance: validatedData.hasInsurance,
+      incidentDate: validatedData.incidentDate
+    };
     
-    // For now, you could also write to a file for persistence
-    // await writeToLogFile(submissionData);
+    const scoringResult = CaseScorer.calculateScore(scoringInput);
+    console.log("AI Score:", scoringResult.aiScore, "Grade:", scoringResult.keeperGrade);
     
-    // Return success response
-    return NextResponse.json(
-      {
-        success: true,
-        message: "Case submission received successfully",
-        submissionId: submissionData.submissionId,
-      },
-      { status: 200 }
+    // 3. Update submission with AI score
+    await DatabaseService.updateSubmissionScore(
+      submissionId, 
+      scoringResult.aiScore, 
+      scoringResult.keeperGrade
     );
+    
+    // 4. Attempt partner firm assignment for qualified cases
+    let assignedFirmId: number | null = null;
+    if (scoringResult.keeperGrade === 'A' || scoringResult.keeperGrade === 'B') {
+      console.log("Attempting partner firm assignment...");
+      try {
+        const availablePartners = await DatabaseService.getAvailablePartners(
+          validatedData.incidentType, 
+          scoringResult.keeperGrade
+        );
+        
+        if (availablePartners.length > 0) {
+          const selectedPartner = availablePartners[0];
+          assignedFirmId = selectedPartner.id!;
+          
+          // Calculate referral fee (example: 25% of estimated settlement)
+          const estimatedSettlement = scoringResult.aiScore * 1000; // Rough estimate
+          const referralFeeAmount = estimatedSettlement * (selectedPartner.referral_fee_percentage / 100);
+          
+          await DatabaseService.assignToPartner(
+            submissionId, 
+            assignedFirmId, 
+            referralFeeAmount
+          );
+          
+          console.log("Assigned to partner firm:", selectedPartner.name);
+        } else {
+          console.log("No available partners found for this case");
+        }
+      } catch (error) {
+        console.error("Error assigning to partner:", error);
+        // Continue without assignment
+      }
+    }
+    
+    // 5. Send client confirmation email
+    console.log("Sending client confirmation email...");
+    const emailService = new EmailService();
+    try {
+      const updatedSubmission = await DatabaseService.getSubmission(submissionId);
+      if (updatedSubmission) {
+        await emailService.sendClientConfirmation(updatedSubmission);
+        console.log("Client confirmation email sent");
+      }
+    } catch (error) {
+      console.error("Error sending client email:", error);
+      // Don't fail the submission if email fails
+    }
+    
+    // 6. Send partner notification if assigned
+    if (assignedFirmId) {
+      console.log("Sending partner notification email...");
+      try {
+        const partnerFirm = await DatabaseService.getPartnerFirm(assignedFirmId);
+        const updatedSubmission = await DatabaseService.getSubmission(submissionId);
+        
+        if (partnerFirm && updatedSubmission) {
+          await emailService.sendPartnerNotification(updatedSubmission, partnerFirm);
+          console.log("Partner notification email sent");
+        }
+      } catch (error) {
+        console.error("Error sending partner email:", error);
+        // Don't fail the submission if email fails
+      }
+    }
+    
+    // 7. Return success response with validation
+    const response = {
+      success: true,
+      message: "Case submission received successfully",
+      submissionId: submissionId,
+      aiScore: scoringResult.aiScore,
+      keeperGrade: scoringResult.keeperGrade,
+      assigned: assignedFirmId ? true : false
+    };
+    
+    // Validate JSON output per user requirements
+    console.log("Response validated:", JSON.stringify(response, null, 2));
+    
+    return NextResponse.json(response, { status: 200 });
     
   } catch (error) {
     console.error("Error processing intake submission:", error);

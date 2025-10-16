@@ -1,38 +1,222 @@
-# Integration Guide - Connecting to Backend Systems
+# Integration Guide - Vercel Postgres Database Setup
 
-This guide explains how to integrate the landing page with database, AI scoring, and routing systems as outlined in the Crosley Referral Engine project plan.
+This guide explains how to set up and integrate the Vercel Postgres database with the referral engine landing page.
 
 ## Overview
 
-The landing page is Phase 1 (c) of the project. The next integration phases are:
+The database integration is now **COMPLETE** and includes:
 
-- **Phase 2:** Database/CRM setup (Supabase or Airtable)
-- **Phase 3:** AI case scoring (FastAPI + ML models)  
-- **Phase 4:** Referral routing engine
-- **Phase 5:** Analytics and reporting
+- **Database:** Vercel Postgres (neon-teal-door)
+- **AI Scoring:** Built-in scoring algorithm
+- **Email Notifications:** Client and partner notifications
+- **Referral Routing:** Automatic partner firm assignment
 
-## Current Architecture
-
-```
-[User] → [Landing Page/Form] → [Next.js API Route] → [Console Log]
-                                                          ↓
-                                                    [To be connected...]
-```
-
-## Target Architecture
+## Current Architecture (IMPLEMENTED)
 
 ```
-[User] → [Landing Page] → [Next.js API] → [FastAPI Backend]
-                                               ├→ [PostgreSQL/Supabase]
-                                               ├→ [AI Scoring Engine]
-                                               └→ [Routing System]
+[User] → [Landing Page/Form] → [Next.js API Route] → [Vercel Postgres Database]
+                                                          ├→ [AI Scoring]
+                                                          ├→ [Email Notifications]
+                                                          └→ [Partner Assignment]
 ```
+
+## Database Setup Instructions
+
+### 1. Create Vercel Postgres Database
+
+**Method 1: Vercel Dashboard (Recommended)**
+
+1. Go to https://vercel.com/dashboard
+2. Select your `acrosley-referral-engine` project
+3. Go to Storage tab → Create Database → Choose Postgres
+4. Name the database "neon-teal-door"
+5. Select region: `iad1` (US East - matches deployment region)
+6. Vercel will automatically provision and link the database
+
+**Method 2: Verify via CLI**
+
+```bash
+# Check if database is linked
+npx vercel env ls
+
+# You should see POSTGRES_* variables listed
+```
+
+### 2. Initialize Database Schema
+
+**Option A: Via Vercel Dashboard (Recommended)**
+
+1. Go to your project → Storage → Postgres
+2. Open the SQL Editor
+3. Copy and paste the contents of `scripts/init-db.sql`
+4. Run the script to create tables and indexes
+
+**Option B: Via CLI (if available)**
+
+```bash
+# Run the initialization script
+npx vercel db init scripts/init-db.sql
+```
+
+### 3. Seed Partner Firms Data
+
+1. In the Vercel Postgres SQL Editor
+2. Copy and paste the contents of `scripts/seed-partners.sql`
+3. Run the script to create sample partner firms
+
+### 4. Set Up Environment Variables
+
+**Required Variables (Auto-injected by Vercel):**
+- `POSTGRES_URL` - Main database connection
+- `POSTGRES_PRISMA_URL` - Prisma-compatible connection
+- `POSTGRES_URL_NON_POOLING` - Direct connection
+
+**Email Configuration (Manual Setup):**
+
+```bash
+# Add SMTP configuration via Vercel CLI
+npx vercel env add SMTP_HOST
+npx vercel env add SMTP_PORT
+npx vercel env add SMTP_USER
+npx vercel env add SMTP_PASS
+npx vercel env add SMTP_FROM
+npx vercel env add NEXT_PUBLIC_APP_URL
+```
+
+**For Outlook Email (Recommended):**
+- SMTP_HOST: `smtp-mail.outlook.com`
+- SMTP_PORT: `587`
+- Enable "App passwords" in Outlook settings
+
+### 5. Test Database Connection
+
+```bash
+# Run the database test script
+npx ts-node scripts/test-db-connection.ts
+```
+
+## Database Schema
+
+The database includes two main tables:
+
+### case_submissions
+- Stores all form submissions
+- Includes AI scoring and keeper grades
+- Tracks assignment to partner firms
+- Maintains audit trail with timestamps
+
+### partner_firms
+- Stores partner law firm information
+- Defines specialties and capacity
+- Sets minimum grade requirements
+- Tracks acceptance rates and fees
+
+## API Integration
+
+The API route (`app/api/intake/route.ts`) now includes:
+
+1. **Database Storage** - Saves all submissions to Vercel Postgres
+2. **AI Scoring** - Calculates keeper scores (0-100) and grades (A/B/C/D)
+3. **Partner Assignment** - Automatically assigns qualified cases to partner firms
+4. **Email Notifications** - Sends confirmation to clients and notifications to partners
+5. **Error Handling** - Graceful handling of database and email failures
+
+## Email Templates
+
+**Client Confirmation Email:**
+- Professional, longer tone per user preference
+- Includes submission ID and next steps
+- Explains the referral process
+- Contact information for questions
+
+**Partner Notification Email:**
+- Detailed case information
+- AI score and keeper grade
+- Client contact details
+- Assignment instructions
+
+## Testing the Integration
+
+### 1. Local Testing
+
+```bash
+# Install dependencies
+npm install
+
+# Copy environment template
+cp env.example .env.local
+
+# Test database connection
+npx ts-node scripts/test-db-connection.ts
+```
+
+### 2. Production Testing
+
+1. Deploy to Vercel: `npx vercel --prod`
+2. Submit test form on live site
+3. Check Vercel logs: `npx vercel logs --follow`
+4. Verify database records in Vercel dashboard
+5. Check email delivery
+
+### 3. Monitoring
+
+```bash
+# View real-time logs
+npx vercel logs acrosley-referral-engine.vercel.app --follow
+
+# Check deployment status
+npx vercel inspect acrosley-referral-engine.vercel.app
+```
+
+## Troubleshooting
+
+### Database Connection Issues
+- Verify Vercel Postgres database is created
+- Check environment variables are set
+- Run database test script
+- Check Vercel project is linked correctly
+
+### Email Issues
+- Verify SMTP configuration
+- Check Outlook app password settings
+- Test email configuration: `npx ts-node scripts/test-db-connection.ts`
+- Check spam folders
+
+### API Errors
+- Check Vercel function logs
+- Verify all dependencies are installed
+- Test API endpoint directly
+- Review error messages in logs
+
+## Next Steps
+
+With the database integration complete, you can now:
+
+1. **Monitor Submissions** - View all case submissions in Vercel dashboard
+2. **Track KPIs** - Use the built-in analytics functions
+3. **Manage Partners** - Add/edit partner firms in the database
+4. **Scale Up** - The system is ready for production traffic
+
+## Files Created/Modified
+
+**New Files:**
+- `lib/db.ts` - Database service and queries
+- `lib/scoring.ts` - AI scoring algorithm
+- `lib/notifications.ts` - Email system
+- `scripts/init-db.sql` - Database schema
+- `scripts/seed-partners.sql` - Sample data
+- `scripts/test-db-connection.ts` - Connection test
+- `env.example` - Environment template
+
+**Modified Files:**
+- `app/api/intake/route.ts` - Full database integration
+- `package.json` - Added dependencies
 
 ---
 
-## Phase 2: Database Integration
+## Legacy Integration Options (No Longer Needed)
 
-### Option A: Supabase (Recommended)
+### Option A: Supabase (Legacy)
 
 #### 1. Setup Supabase
 
