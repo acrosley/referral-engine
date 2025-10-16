@@ -23,10 +23,10 @@ export default function RootLayout({
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex justify-between items-center">
               <div>
-                <h1 className="text-3xl font-extrabold text-primary-700">
+                <h1 className="text-3xl font-extrabold text-primary-700 leading-tight">
                   Crosley Referral Law Group
                 </h1>
-                <p className="text-base text-gray-600">Licensed Attorney Referral Services</p>
+                <p className="text-sm text-gray-600">Licensed Attorney Referral Services</p>
               </div>
               <nav>
                 <a
