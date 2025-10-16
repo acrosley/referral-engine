@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
       medical_treatment: validatedData.medicalTreatment,
       hospitalized: validatedData.hospitalized,
       has_insurance: validatedData.hasInsurance,
-      insurance_provider: validatedData.insuranceProvider || null,
+      insurance_provider: validatedData.insuranceProvider || undefined,
       has_attorney: validatedData.hasAttorney,
       submitted_at: new Date().toISOString(),
       source: "web_form",
