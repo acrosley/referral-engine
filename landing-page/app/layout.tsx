@@ -26,7 +26,7 @@ export default function RootLayout({
                 <h1 className="text-3xl font-extrabold text-primary-700">
                   Crosley Referral Law Group
                 </h1>
-                <p className="text-sm text-gray-600">Licensed Attorney Referral Services</p>
+                <p className="text-base text-gray-600">Licensed Attorney Referral Services</p>
               </div>
               <nav>
                 <a
