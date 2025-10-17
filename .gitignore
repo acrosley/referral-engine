@@ -1,26 +1,5 @@
 .vercel
 
 # Sensitive credential files
-*.txt
+requirements.txt
 !README.txt
-
-# Temporary test files
-**/test-*.ts
-**/setup-production-*.ts
-**/app-url.txt
-
-# Environment and config files
-.env
-.env.local
-.env.production
-.env.staging
-
-# SMTP credentials
-smtp-*.txt
-
-# Python cache files
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
