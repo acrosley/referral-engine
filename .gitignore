@@ -3,3 +3,6 @@
 # Sensitive credential files
 requirements.txt
 !README.txt
+
+# Reference documentation (local only)
+REFERENCE/
